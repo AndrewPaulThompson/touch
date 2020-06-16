@@ -21,7 +21,7 @@ type options struct {
 
 func main() {
 	// Parse flags & args
-	options := getFlags()
+	options := getFlags(os.Args)
 
 	// Initialise default time values
 	modTime := time.Now()
@@ -29,22 +29,11 @@ func main() {
 
 	// If we have a date to use
 	if options.date != "" {
-		t, err := time.Parse(time.RFC3339, options.date)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		modTime, accessTime = t, t
+		modTime, accessTime = getTime(time.RFC3339, options.date)
 	}
 
 	if options.timestamp != "" {
-		layout := "200601021504.05"
-		t, err := time.Parse(layout, options.timestamp)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		modTime, accessTime = t, t
+		modTime, accessTime = getTime("200601021504.05", options.timestamp)
 	}
 
 	// Set times to that of the reference file if needed
@@ -73,6 +62,15 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+}
+
+func getTime(layout string, dateString string) (time.Time, time.Time) {
+	t, err := time.Parse(layout, dateString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return t, t
 }
 
 func getFiles(options options) []os.FileInfo {
@@ -118,21 +116,26 @@ func getReferenceFile(file string) (time.Time, time.Time) {
 	return modTime, accessTime
 }
 
-func getFlags() options {
+func getFlags(args []string) options {
 	opts := options{}
 
 	// Get each expected flag value
-	flag.BoolVar(&opts.changeAccessTime, "a", false, "Change only the access time")
-	flag.BoolVar(&opts.noCreate, "c", false, "Do not create any files")
-	flag.BoolVar(&opts.noCreate, "no-create", false, "Do not create any files")
-	flag.StringVar(&opts.date, "d", "", "Parse STRING and use it instead of current time")
-	flag.StringVar(&opts.date, "date", "", "Parse STRING and use it instead of current time")
-	flag.BoolVar(&opts.changeModificationTime, "m", false, "Change only the modification time")
-	flag.StringVar(&opts.referenceFile, "r", "", "Use this file's times instead of current time")
-	flag.StringVar(&opts.referenceFile, "reference", "", "Use this file's times instead of current time")
-	flag.StringVar(&opts.timestamp, "t", "", "Use [[CC]YY]MMDDhhmm[.ss] instead of current time")
-	flag.StringVar(&opts.time, "time", "", "Change the specified time:\nWORD is access, atime, or use: equivalent to -a\nWORD is modify or mtime: equivalent to -m")
-	flag.Parse()
+	fs := flag.NewFlagSet(args[0], flag.ExitOnError)
+	fs.BoolVar(&opts.changeAccessTime, "a", false, "Change only the access time")
+	fs.BoolVar(&opts.noCreate, "c", false, "Do not create any files")
+	fs.BoolVar(&opts.noCreate, "no-create", false, "Do not create any files")
+	fs.StringVar(&opts.date, "d", "", "Parse STRING and use it instead of current time")
+	fs.StringVar(&opts.date, "date", "", "Parse STRING and use it instead of current time")
+	fs.BoolVar(&opts.changeModificationTime, "m", false, "Change only the modification time")
+	fs.StringVar(&opts.referenceFile, "r", "", "Use this file's times instead of current time")
+	fs.StringVar(&opts.referenceFile, "reference", "", "Use this file's times instead of current time")
+	fs.StringVar(&opts.timestamp, "t", "", "Use [[CC]YY]MMDDhhmm[.ss] instead of current time")
+	fs.StringVar(&opts.time, "time", "", "Change the specified time:\nWORD is access, atime, or use: equivalent to -a\nWORD is modify or mtime: equivalent to -m")
+
+	err := fs.Parse(args[1:])
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Do extra validation on time flag, since it has expected values
 	if opts.time == "access" || opts.time == "atime" {
@@ -140,17 +143,17 @@ func getFlags() options {
 	} else if opts.time == "modify" || opts.time == "mtime" {
 		opts.changeAccessTime = true
 	} else if opts.time != "" {
-		flag.PrintDefaults()
+		fs.PrintDefaults()
 		os.Exit(1)
 	}
 
 	// If the argument is empty, bail out
-	if len(flag.Args()) < 1 {
+	if len(fs.Args()) < 1 {
 		log.Fatal("Expected at least 1 argument")
 	}
 
 	// Get the 1st argument passed to the command
-	opts.arguments = flag.Args()
+	opts.arguments = fs.Args()
 
 	return opts
 }
