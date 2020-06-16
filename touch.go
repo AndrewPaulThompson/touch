@@ -145,8 +145,8 @@ func getFlags() options {
 	}
 
 	// If the argument is empty, bail out
-	if flag.Arg(0) == "" {
-		log.Fatal("Expected filename as argument")
+	if len(flag.Args()) < 1 {
+		log.Fatal("Expected at least 1 argument")
 	}
 
 	// Get the 1st argument passed to the command

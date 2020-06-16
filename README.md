@@ -1,2 +1,2 @@
 # touch
-Unix like Touch command
+Unix like Touch command for Windows
